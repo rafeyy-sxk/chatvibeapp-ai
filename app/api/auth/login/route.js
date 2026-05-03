@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { loginSchema } from "@/lib/validation/authSchemas";
 import { verifyPassword } from "@/lib/security/password";
 import { enforceRateLimit } from "@/middleware/rateLimit";
-import { validateCsrf, ensureCsrfCookie } from "@/middleware/csrf";
+import { ensureCsrfCookie } from "@/middleware/csrf";
 import { generateAccessToken, generateRefreshToken } from "@/lib/auth/tokens";
 import { persistRefreshToken, revokeRefreshToken } from "@/lib/auth/refreshStore";
 import { setRefreshCookie } from "@/lib/auth/cookies";
@@ -21,9 +21,6 @@ export async function POST(request) {
   try {
   const rateLimit = await enforceRateLimit(request, "auth:login");
   if (rateLimit) return rateLimit;
-
-  const csrfCheck = validateCsrf(request);
-  if (csrfCheck) return csrfCheck;
 
   let payload;
   try {

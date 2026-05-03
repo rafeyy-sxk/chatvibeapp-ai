@@ -3,15 +3,13 @@
 # dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
 
 # testing
 /coverage
+/test-results
+/playwright-report
+/playwright/.cache
 
 # next.js
 /.next/
@@ -28,10 +26,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# local env files
+.env*.local
+.env
 
 # vercel
 .vercel
@@ -39,3 +37,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+/prisma/migrations
+
+# swc
+.swc/
+
+# temp
+temp-jest/
+*.log
+
+.vercel
+.env*.local
+
+# sensitive / generated
+curlcookies.txt
+test-debug.js
+testGemini.js
+eng.traineddata
+ACTIONS_SUMMARY.txt
+DEPLOYMENT_CHECKLIST.txt
+FINAL_PRODUCTION_REPORT.txt
+PRODUCTION_READINESS_FINAL.md
+PRODUCTION_READINESS_REPORT.txt
+VERIFICATION_REPORT.txt
+scripts/clear-users.mjs

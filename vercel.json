@@ -1,0 +1,24 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "prisma generate && next build --webpack",
+  "installCommand": "npm ci",
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 30
+    },
+    "app/api/jobs/[id]/stream/route.js": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    }
+  ]
+}

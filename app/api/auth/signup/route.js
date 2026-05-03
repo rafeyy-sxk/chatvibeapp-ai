@@ -60,7 +60,7 @@ export async function POST(request) {
     console.error("[signup] Error:", error.message);
     return applySecurityHeaders(
       NextResponse.json(
-        { error: "Signup failed. Please try again." },
+        { error: error.message || "Signup failed." },
         { status: 500 }
       )
     );

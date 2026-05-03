@@ -13,12 +13,12 @@ import { isLocked, registerFailedLogin, resetFailedLogins } from "@/lib/auth/loc
 import { createUserSession } from "@/lib/security/sessionManager";
 import { getCorrelationId } from "@/lib/logger";
 
-// Ensure Node.js runtime for Prisma
-export const runtime = 'nodejs';
-export const maxDuration = 10;
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function POST(request) {
   const correlationId = getCorrelationId(request);
+  try {
   const rateLimit = await enforceRateLimit(request, "auth:login");
   if (rateLimit) return rateLimit;
 
@@ -88,5 +88,11 @@ export async function POST(request) {
   setRefreshCookie(response, refreshToken);
   ensureCsrfCookie(response, request.cookies.get("cv_csrf")?.value);
   return applySecurityHeaders(response);
+  } catch (error) {
+    console.error("[login] Error:", error.message);
+    return applySecurityHeaders(
+      NextResponse.json({ error: "Login failed. Please try again." }, { status: 500 })
+    );
+  }
 }
 

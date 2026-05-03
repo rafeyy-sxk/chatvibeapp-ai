@@ -4,15 +4,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { UpgradeModal } from "./UpgradeModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, CheckCircle, AlertCircle } from "lucide-react";
-
-const STAGES = [
-  { key: "reading", label: "Reading images…", pct: 15 },
-  { key: "ocr", label: "Extracting text (OCR)…", pct: 55 },
-  { key: "analysing", label: "Analysing with Groq AI…", pct: 85 },
-  { key: "saving", label: "Saving report…", pct: 95 },
-  { key: "done", label: "Analysis complete!", pct: 100 },
-];
+import { Upload, X, CheckCircle, AlertCircle, Zap } from "lucide-react";
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -20,23 +12,38 @@ function formatBytes(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-async function runOCR(dataUrl) {
-  // Dynamically import Tesseract.js to avoid SSR issues
-  const { createWorker } = await import("tesseract.js");
-  const worker = await createWorker("eng", 1, {
-    logger: () => {}, // suppress Tesseract logs
+/**
+ * Compress an image file using canvas to reduce size before sending to server.
+ * Returns a base64 data URL (JPEG, quality 0.82, max 1280px wide).
+ */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1280;
+      let { width, height } = img;
+      if (width > MAX) {
+        height = Math.round((height * MAX) / width);
+        width = MAX;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = reject;
+    img.src = url;
   });
-  try {
-    const { data: { text } } = await worker.recognize(dataUrl);
-    return text?.trim() || "";
-  } finally {
-    await worker.terminate();
-  }
 }
 
 export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
-  const [stage, setStage] = useState(null); // null = idle
+  const [stage, setStage] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [statusLabel, setStatusLabel] = useState("");
   const [error, setError] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -66,56 +73,41 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
       }
 
       // Show previews immediately
-      const previews = acceptedFiles.map((f) => ({
-        id: `${f.name}-${Date.now()}-${Math.random()}`,
-        name: f.name,
-        size: f.size,
-        preview: URL.createObjectURL(f),
-      }));
-      setUploadedFiles(previews);
+      setUploadedFiles(
+        acceptedFiles.map((f) => ({
+          id: `${f.name}-${Date.now()}-${Math.random()}`,
+          name: f.name,
+          size: f.size,
+          preview: URL.createObjectURL(f),
+        }))
+      );
 
       try {
-        // Stage 1: Read files as data URLs
-        setStage("reading");
-        setProgress(5);
+        // Step 1: Compress images (0 → 30%)
+        setStage("compressing");
+        setStatusLabel("Preparing images…");
+        setProgress(10);
+
         const dataUrls = await Promise.all(
-          acceptedFiles.map(
-            (file) =>
-              new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-              })
-          )
+          acceptedFiles.map((f) => compressImage(f))
         );
-        setProgress(15);
 
-        // Stage 2: OCR each image in sequence (shows progress per image)
-        setStage("ocr");
-        const texts = [];
-        for (let i = 0; i < dataUrls.length; i++) {
-          const text = await runOCR(dataUrls[i]);
-          texts.push(text);
-          setProgress(15 + Math.round(((i + 1) / dataUrls.length) * 40));
-        }
+        setProgress(30);
 
-        const combinedText = texts.filter(Boolean).join("\n\n---\n\n");
-
-        if (!combinedText.trim()) {
-          throw new Error(
-            "No text could be extracted. Please use clear, readable screenshots."
-          );
-        }
-
-        // Stage 3: Send to Groq analysis API
+        // Step 2: Send to Groq vision API (30 → 90%)
         setStage("analysing");
-        setProgress(60);
+        setStatusLabel("Analysing with AI…");
+        setProgress(40);
 
-        const payload = { text: combinedText };
+        const payload = { images: dataUrls };
         if (customPrompt?.trim()) payload.customPrompt = customPrompt.trim();
 
-        const res = await fetch("/api/analyze-text", {
+        // Animate progress while waiting for API
+        const progressTimer = setInterval(() => {
+          setProgress((p) => (p < 85 ? p + 3 : p));
+        }, 400);
+
+        const res = await fetch("/api/analyze-vision", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -124,6 +116,7 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
           body: JSON.stringify(payload),
         });
 
+        clearInterval(progressTimer);
         setProgress(90);
 
         const data = await res.json();
@@ -133,37 +126,32 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
             setError(data.message || "You've run out of credits.");
             setShowUpgradeModal(true);
             try {
-              const usageRes = await fetch("/api/billing/usage", {
+              const ur = await fetch("/api/billing/usage", {
                 headers: { Authorization: `Bearer ${token}` },
               });
-              if (usageRes.ok) {
-                const ud = await usageRes.json();
-                setCurrentTier(ud.tier || "FREE");
-              }
+              if (ur.ok) setCurrentTier((await ur.json()).tier || "FREE");
             } catch { /* ignore */ }
           } else {
-            throw new Error(data.error || data.message || "Analysis failed.");
+            throw new Error(data.error || "Analysis failed.");
           }
           setUploadedFiles([]);
           setStage(null);
           setProgress(0);
+          setStatusLabel("");
           return;
         }
 
-        // Stage 4: Done
-        setStage("saving");
-        setProgress(95);
-
-        await new Promise((r) => setTimeout(r, 300)); // brief "saving" flash
-
+        // Step 3: Done
         setStage("done");
+        setStatusLabel("Complete!");
         setProgress(100);
 
-        await new Promise((r) => setTimeout(r, 600)); // show success briefly
+        await new Promise((r) => setTimeout(r, 600));
 
         setUploadedFiles([]);
         setStage(null);
         setProgress(0);
+        setStatusLabel("");
 
         if (typeof onResult === "function") {
           onResult({ reportId: data.reportId, analysis: data.analysis });
@@ -174,6 +162,7 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
         setUploadedFiles([]);
         setStage(null);
         setProgress(0);
+        setStatusLabel("");
       }
     },
     [accessToken, customPrompt, onResult]
@@ -185,8 +174,6 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
     maxFiles: 10,
     disabled: isLoading,
   });
-
-  const currentStage = STAGES.find((s) => s.key === stage);
 
   return (
     <div className="w-full space-y-4">
@@ -209,13 +196,12 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
 
         {isLoading || stage === "done" ? (
           <div className="flex flex-col items-center justify-center gap-4 px-6 py-10">
-            {/* Progress */}
             {stage !== "done" ? (
               <>
                 <div className="w-10 h-10 border-2 border-violet-500/25 border-t-violet-400 rounded-full animate-spin-smooth" />
-                <div className="w-full max-w-xs space-y-2 text-center">
+                <div className="w-full max-w-xs space-y-2.5 text-center">
                   <p className="text-sm font-medium text-white/70">
-                    {currentStage?.label || "Processing…"}
+                    {statusLabel}
                   </p>
                   <div className="progress-bar">
                     <motion.div
@@ -224,7 +210,9 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                       transition={{ duration: 0.4, ease: "easeOut" }}
                     />
                   </div>
-                  <p className="text-xs text-white/30 tabular-nums">{progress}%</p>
+                  <p className="text-xs text-white/30 tabular-nums">
+                    {progress}%
+                  </p>
                 </div>
               </>
             ) : (
@@ -234,7 +222,9 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                 className="flex flex-col items-center gap-2"
               >
                 <CheckCircle size={28} className="text-emerald-400" />
-                <p className="text-sm font-medium text-emerald-300">Analysis complete!</p>
+                <p className="text-sm font-medium text-emerald-300">
+                  Analysis complete!
+                </p>
               </motion.div>
             )}
           </div>
@@ -242,7 +232,9 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
           <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
             <div
               className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${
-                isDragActive ? "bg-violet-500/20 text-violet-300" : "bg-white/5 text-white/35"
+                isDragActive
+                  ? "bg-violet-500/20 text-violet-300"
+                  : "bg-white/5 text-white/35"
               }`}
             >
               <Upload size={20} />
@@ -253,8 +245,9 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                   ? "Drop your screenshots here"
                   : "Drag & drop screenshots, or click to browse"}
               </p>
-              <p className="mt-0.5 text-xs text-white/35">
-                PNG, JPG, WEBP · Up to 10 files · OCR runs in your browser
+              <p className="mt-1 text-xs text-white/35 flex items-center justify-center gap-1">
+                <Zap size={10} className="text-violet-400" />
+                PNG, JPG, WEBP · Up to 10 files · AI reads images directly
               </p>
             </div>
           </div>
@@ -300,10 +293,18 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                 animate={{ scale: 1, opacity: 1 }}
                 className="group relative aspect-square overflow-hidden rounded-xl border border-white/8"
               >
-                <img src={file.preview} alt={file.name} className="w-full h-full object-cover" />
+                <img
+                  src={file.preview}
+                  alt={file.name}
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                  <p className="text-[10px] text-white truncate font-medium">{file.name}</p>
-                  <p className="text-[10px] text-white/50">{formatBytes(file.size)}</p>
+                  <p className="text-[10px] text-white truncate font-medium">
+                    {file.name}
+                  </p>
+                  <p className="text-[10px] text-white/50">
+                    {formatBytes(file.size)}
+                  </p>
                 </div>
               </motion.div>
             ))}

@@ -51,6 +51,9 @@ temp-jest/
 .vercel
 .env*.local
 
+# Claude Code settings (may contain command history with secrets)
+.claude/
+
 # sensitive / generated
 curlcookies.txt
 test-debug.js

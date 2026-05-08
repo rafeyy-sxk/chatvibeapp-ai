@@ -1,266 +1,288 @@
+---
+title: ChatVibe AI
+description: Instant AI image analysis in under 5 seconds — powered by Groq + Llama 3.2 Vision
+tags:
+  - nextjs
+  - groq
+  - llama
+  - ocr
+  - ai
+  - saas
+aliases:
+  - chatvibe
+  - chatvibeapp-ai
+author: Abdul Rafey
+github: https://github.com/rafeyy-sxk
+status: active
+version: 1.0.0
+---
+
 # ChatVibe AI
 
-**Decode every conversation.** Upload chat screenshots, extract text via browser-side OCR, and get AI-powered psychological insights — emotional metrics, behavioral flags, personality traits, and actionable advice — powered by Groq (LLaMA 3.3 70B).
+> **Image → Result in under 5 seconds. Powered by Groq + Llama 3.2 Vision. No setup required.**
 
-🚀 **Live:** [chatvibeapp-ai.vercel.app](https://chatvibeapp-ai.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square)](https://nextjs.org)
+[![Groq](https://img.shields.io/badge/Groq-Llama%203.2%20Vision-E84025?style=flat-square)](https://groq.com)
+[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square)](https://prisma.io)
+[![BullMQ](https://img.shields.io/badge/BullMQ-queue-red?style=flat-square)](https://docs.bullmq.io)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
----
+Upload any image — chat screenshot, document, receipt, medical record. ChatVibe AI sends it directly to **Groq's Llama 3.2 Vision** model for instant analysis. No setup. No local install. Results in under 5 seconds.
 
-## What it does
-
-1. **Upload** chat screenshots (WhatsApp, iMessage, Instagram DMs, Telegram — any platform)
-2. **OCR** runs entirely in your browser via Tesseract.js — images never leave your device during text extraction
-3. **Groq AI** (LLaMA 3.3 70B) analyses the extracted text and returns:
-   - Overall conversation vibe
-   - 7 emotional metrics (flirty, passive-aggressive, friendly, romantic, dry energy, angry, confused)
-   - Personality traits detected
-   - Behavioral flags (avoidance, manipulation, clinginess, etc.)
-   - Honest relationship advice
-4. **Results** are saved to your account and viewable anytime with full analytics charts
+Built by **Abdul Rafey** · Senior AI/ML & CV Engineer · [github.com/rafeyy-sxk](https://github.com/rafeyy-sxk)
 
 ---
 
-## Tech stack
+## Why Groq + Llama 3.2?
+
+> [!success] Instant, no setup
+> Groq's inference hardware runs `meta-llama/llama-4-scout-17b-16e-instruct` at sub-second token latency. **Median analysis time: under 3 seconds.** No local install required — just drop an image.
+
+---
+
+## Features
+
+- **⚡ Under 5 seconds** — Groq + Llama 3.2 Vision reads images directly
+- **🚀 No setup** — no local install, no model downloads
+- **💬 Chat with results** — follow-up questions powered by Groq
+- **📦 Batch analysis** — up to 10 images queued simultaneously  
+- **📤 Multi-format export** — PDF, Word, CSV, JSON, Markdown
+- **🔍 History & search** — full-text search across all past analyses
+- **🔗 Shareable links** — privacy-toggled public result sharing
+- **🌐 REST & WebSocket API** — Pro plan programmatic access
+- **🔔 Webhooks** — Slack, Discord, or any HTTP endpoint
+- **🌍 Multi-language OCR** — English, Arabic, Urdu, Spanish, French
+- **🛡️ PII Redaction** — auto-detect and blur emails, phones, IDs
+- **⚖️ Compare mode** — side-by-side analysis of two images
+- **📱 Mobile PWA** — direct camera upload on phones
+- **⌨️ Keyboard shortcuts** — `⌘U` upload · `⌘H` history · `?` help
+
+
+
+---
+
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16, React 19 |
-| Styling | Tailwind CSS 4, Framer Motion |
-| AI Analysis | Groq API — LLaMA 3.3 70B Versatile |
-| OCR | Tesseract.js 6 (runs in browser) |
-| Database | PostgreSQL via Neon (serverless) |
-| Auth | JWT (access tokens 15min) + httpOnly refresh cookies (7 days) |
-| Security | CSRF protection, bcrypt password hashing, account lockout |
-| Deployment | Vercel (serverless) |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, Framer Motion |
+| AI Engine | **Groq** (`meta-llama/llama-4-scout-17b-16e-instruct`) — cloud inference, ~2s |
+| OCR | Tesseract.js — browser + Node |
+| Database | PostgreSQL via Prisma ORM (Neon serverless) |
+| Queue | BullMQ + Redis (ioredis) |
+| Payments | Stripe (webhooks, subscriptions) |
+| Image | Sharp (preprocessing, resize, sharpen) |
+| Auth | JWT (access + refresh tokens) + bcrypt |
+| Monitoring | Sentry + OpenTelemetry |
 
 ---
 
-## Getting started locally
+## Quick Start
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL (local) OR a Neon database URL
+> [!tip] Prerequisites
+> - Node.js 18+
+> - PostgreSQL (or Neon connection string)
+> - Redis (local or Upstash)
+> - Groq API key (free at [console.groq.com](https://console.groq.com))
 
-### 1. Clone the repo
+### 1. Clone & Install
+
 ```bash
-git clone https://github.com/rafeyys/chatvibeapp-ai.git
+git clone https://github.com/rafeyy-sxk/chatvibeapp-ai
 cd chatvibeapp-ai
-```
-
-### 2. Install dependencies
-```bash
 npm install
 ```
 
-### 3. Set up environment variables
-Create a `.env.local` file in the root:
+### 3. Environment Variables
+
+```bash
+cp .env.example .env.local
+```
+
 ```env
-# Database — use your own PostgreSQL or get a free one at neon.tech
-DATABASE_URL="postgresql://user:password@localhost:5432/chatvibe"
+# Database (required)
+DATABASE_URL="postgresql://user:pass@localhost:5432/chatvibe"
 
-# Groq API — free at console.groq.com
-GROQ_API_KEY="gsk_your_key_here"
-
-# Auth secrets — generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-JWT_SECRET="your_32_char_minimum_secret"
-REFRESH_TOKEN_SECRET="another_32_char_minimum_secret"
-
-# Optional
+# Redis (required for job queue)
 REDIS_URL="redis://localhost:6379"
-PAYMENTS_ENABLED="false"
+
+# JWT (required — generate with: openssl rand -base64 32)
+JWT_ACCESS_SECRET="..."
+JWT_REFRESH_SECRET="..."
+
+# Groq (required — get free key at console.groq.com)
+GROQ_API_KEY="gsk_..."
 ```
 
-### 4. Set up the database
+### 4. Database Setup
+
 ```bash
-npx prisma db push
+npx prisma migrate dev
+npx prisma generate
 ```
 
-### 5. Run the dev server
+### 5. Start
+
 ```bash
+# Terminal 1: Next.js
 npm run dev
+
+# Terminal 2: Analysis worker
+npm run worker
+
+# Terminal 3: Email worker (optional)
+npm run worker:email
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Deploying to Vercel
+## API Reference
 
-### 1. Install Vercel CLI
-```bash
-npm i -g vercel
+> [!abstract] Authentication
+> All endpoints require `Authorization: Bearer <access_token>`.
+> Get tokens via `POST /api/auth/login`.
+
+### Core Endpoints
+
+```http
+POST   /api/analyze              Queue an analysis job
+GET    /api/analyze/stream       Stream Groq tokens (SSE)
+POST   /api/analyze/batch        Queue up to 10 images
+GET    /api/export               Download result (pdf|json|md|csv)
+POST   /api/chat                 Chat with an analysis result
+GET    /api/history              Paginated history + search
+GET    /api/jobs/[id]/status     Poll job status
+GET    /api/jobs/[id]/stream     Stream job progress (SSE)
+GET    /api/health               System health check
 ```
 
-### 2. Link and deploy
-```bash
-vercel login
-vercel --prod
+### Analyze an Image
+
+```http
+POST /api/analyze
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "text": "<OCR-extracted text>",
+  "customPrompt": "Focus on emotional tone"
+}
 ```
 
-### 3. Add environment variables in Vercel dashboard
-Go to **Project Settings → Environment Variables** and add:
-
-| Variable | Required | Where to get it |
-|---|---|---|
-| `DATABASE_URL` | ✅ | [neon.tech](https://neon.tech) — free PostgreSQL |
-| `GROQ_API_KEY` | ✅ | [console.groq.com](https://console.groq.com) — free |
-| `JWT_SECRET` | ✅ | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
-| `REFRESH_TOKEN_SECRET` | ✅ | Same as above, different value |
-| `PAYMENTS_ENABLED` | ✅ | Set to `false` unless using Stripe |
-
-### 4. Push schema to production database
-```bash
-npx prisma db push --url="your_neon_url"
+**Response `202`:**
+```json
+{
+  "data": { "jobId": "clx...", "status": "QUEUED" },
+  "status": "ok",
+  "error": null
+}
 ```
 
-### 5. Redeploy
-```bash
-vercel --prod
+### Stream Analysis
+
+```http
+GET /api/analyze/stream?jobId=clx...
+Authorization: Bearer <token>
 ```
+
+Returns `text/event-stream`. Events: `start` → `token` (×N) → `done`.
+
+### Export Results
+
+```http
+GET /api/export?jobId=clx...&format=pdf
+Authorization: Bearer <token>
+```
+
+Supported formats: `pdf`, `json`, `markdown`, `csv`.
 
 ---
 
-## Project structure
+## Pricing
+
+| Plan | Analyses | Key Features | Price |
+|---|---|---|---|
+| **Free** | 10/month | OCR + JSON export | $0 |
+| **Basic** | 200/month | Batch + PDF/Word export + history | $9/mo |
+| **Pro** | Unlimited | API + webhooks + compare + priority | $29/mo |
+
+---
+
+## Project Structure
 
 ```
 chatvibeapp-ai/
 ├── app/
-│   ├── (auth)/              # Login, signup, forgot/reset password
-│   ├── analysis/            # Results page + [id] detail view with charts
-│   ├── billing/             # Subscription & usage page
-│   ├── upload/              # Main upload interface
+│   ├── page.js                  # Landing page (editorial redesign)
+│   ├── layout.js                # Fraunces + DM Sans fonts, OG metadata
 │   └── api/
-│       ├── analyze-text/    # ✨ Core endpoint: receives OCR text → Groq → saves report
-│       ├── auth/            # Login, signup, logout, refresh, reset
-│       ├── billing/         # Stripe webhooks, usage, portal
-│       ├── jobs/            # Async job queue (BullMQ, when Redis available)
-│       ├── reports/         # Fetch saved reports
-│       └── health/          # Database + Redis health check
-├── components/
-│   ├── UploadAreaV2.jsx     # Drop zone + browser OCR + Groq call
-│   ├── Navbar.js            # Auth-aware responsive navbar
-│   ├── JobStatusStream.jsx  # Real-time job progress via polling
-│   ├── CreditMeter.jsx      # Usage display
-│   └── UpgradeModal.jsx     # Billing upgrade flow
+│       ├── analyze/             # Queue + stream + batch
+│       ├── auth/                # login, signup, refresh, logout, reset
+│       ├── billing/             # Stripe webhooks, subscribe, portal
+│       ├── chat/                # Groq conversation per job
+│       ├── export/              # PDF, CSV, JSON, Markdown
+│       ├── history/             # Paginated + searchable
+│       ├── share/               # Shareable public links
+│       ├── webhooks/            # Outbound webhook delivery
+│       └── health/              # System status
 ├── lib/
-│   ├── auth/                # JWT tokens, refresh store, lockout
-│   ├── billing/             # Stripe config, subscription, usage
-│   ├── cache/               # Redis caching layer (graceful fallback)
-│   ├── queue/               # BullMQ job queue (lazy init, optional)
-│   ├── rateLimit.js         # In-memory rate limiting (no Redis required)
-│   ├── env.js               # Centralized env var loading
-│   └── prisma.js            # PrismaClient singleton
-├── prisma/
-│   └── schema.prisma        # Full data model (User, Reports, Billing, etc.)
-├── server/
-│   ├── src/services/
-│   │   └── analysisEngine.js # Internal analytics (sentiment, toxicity, dominance)
-│   └── workers/
-│       └── analysisWorker.js # BullMQ worker (for self-hosted deployments)
-└── middleware/
-    └── csrf.js              # CSRF double-submit cookie protection
+│   ├── ai.js                    # Groq client (generate + stream + healthCheck)
+│   ├── prisma.js                # Prisma singleton
+│   ├── redis.js                 # ioredis client
+│   ├── confidence.js            # OCR + AI confidence scoring
+│   ├── redaction.js             # PII detection + auto-redaction
+│   └── billing/                 # Stripe, feature gating, usage tracking
+├── components/
+│   └── ThemeToggle.jsx          # Dark/Light/System theme switch
+├── hooks/
+│   └── useKeyboardShortcuts.js  # ⌘U/⌘H/⌘B global shortcuts
+├── server/workers/              # BullMQ analysis + email workers
+├── prisma/schema.prisma         # Full schema
+└── marketing/                   # Launch assets, SEO, pitch deck
 ```
 
 ---
 
-## How the analysis works
+## Deployment
 
+> [!tip] Groq runs on Vercel serverless out of the box
+> No persistent compute required. Set `GROQ_API_KEY` in Vercel environment variables and deploy.
+
+```bash
+# Build + verify
+npm run build
+npm run verify:deploy
+
+# Deploy to Vercel
+vercel --prod
 ```
-User uploads images
-       ↓
-Browser runs Tesseract.js OCR on each image (no server involved)
-       ↓
-Extracted text sent to POST /api/analyze-text
-       ↓
-Internal analytics engine runs (sentiment timeline, toxicity, dominance, keywords, behavior flags)
-       ↓
-Groq API (LLaMA 3.3 70B) analyses the conversation text
-       ↓
-Results saved to PostgreSQL (AnalysisReport)
-       ↓
-User redirected to /analysis/[reportId] — full charts and insights
-```
+
+See [[next-steps]] for the complete deployment runbook with env vars and Stripe setup.
 
 ---
 
-## API reference
+## Security
 
-### POST `/api/analyze-text`
-Analyses OCR-extracted conversation text.
-
-**Auth:** Bearer token required
-
-**Body:**
-```json
-{
-  "text": "extracted conversation text",
-  "customPrompt": "focus on passive aggression (optional)"
-}
-```
-
-**Response:**
-```json
-{
-  "reportId": "cuid",
-  "analysis": {
-    "summary": "...",
-    "overall_vibe": "Flirtatious with emotional distance",
-    "metrics": {
-      "flirty": 72,
-      "passive_aggressive": 28,
-      "friendly": 85,
-      "romantic": 55,
-      "dry_energy": 40,
-      "angry": 12,
-      "confused": 18
-    },
-    "personality_traits": ["Direct communicator", "Emotionally guarded"],
-    "behavior_flags": ["Mixed signals", "Avoidant patterns"],
-    "advice": "..."
-  }
-}
-```
-
-### POST `/api/auth/signup`
-```json
-{ "username": "string", "email": "string (optional)", "password": "string (min 8)" }
-```
-
-### POST `/api/auth/login`
-```json
-{ "username": "string", "password": "string" }
-```
-
-### GET `/api/reports/[id]`
-Returns a saved analysis report (auth required, user must own the report).
-
-### GET `/api/health`
-Returns database, Redis, and queue status.
+> [!info] Security features
+> - **JWT rotation** — 15-min access tokens, 7-day httpOnly refresh cookies
+> - **bcrypt** — passwords hashed at cost 12
+> - **Account lockout** — 3 failed logins → 15-minute lockout
+> - **PII redaction** — emails, phones, SSNs auto-redacted before AI analysis
+> - **Rate limiting** — per-IP and per-user on all endpoints
+> - **Security headers** — HSTS, CSP, X-Frame-Options on all responses
+> - **File validation** — MIME sniffing + magic bytes + 10MB limit
 
 ---
 
-## Security features
+## Contributing
 
-- **CSRF protection** — double-submit cookie pattern on all mutation endpoints
-- **JWT rotation** — 15-minute access tokens, 7-day httpOnly refresh cookies
-- **Account lockout** — 3 failed logins triggers a 15-minute lockout
-- **Bcrypt** — passwords hashed with 12 rounds
-- **PII detection** — phone numbers, emails, credit cards auto-redacted before Groq analysis
-- **Rate limiting** — in-memory per-IP and per-user limits on all endpoints
-- **Security headers** — HSTS, CSP, X-Frame-Options, X-Content-Type-Options on all responses
-
----
-
-## Subscription tiers
-
-| Feature | Free | Basic ($2.99/mo) | Pro ($5.99/mo) |
-|---|---|---|---|
-| Analyses per month | 10 | 30 | 100 |
-| Images per job | 5 | 8 | 10 |
-| Analytics charts | ✅ | ✅ | ✅ |
-| Report history | ✅ | ✅ | ✅ |
-
-> Payments are disabled by default (`PAYMENTS_ENABLED=false`). Enable with a Stripe account.
+1. Fork the repo
+2. `git checkout -b feature/my-feature`
+3. `git commit -m "feat: add my feature"`
+4. `git push origin feature/my-feature`
+5. Open a PR
 
 ---
 
@@ -270,4 +292,5 @@ MIT — use it, fork it, build on it.
 
 ---
 
-Built by **Abdul Rafey** · Powered by [Groq](https://groq.com) · Deployed on [Vercel](https://vercel.com)
+*Built by [Abdul Rafey](https://github.com/rafeyy-sxk) — Senior AI/ML & CV Engineer*  
+*Powered by Groq + Llama 3.2 Vision · Built by Abdul Rafey*

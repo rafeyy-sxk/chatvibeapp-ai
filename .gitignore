@@ -54,6 +54,10 @@ temp-jest/
 # Claude Code settings (may contain command history with secrets)
 .claude/
 
+# local test artifacts
+test_*.json
+test_*.txt
+
 # sensitive / generated
 curlcookies.txt
 test-debug.js
@@ -66,3 +70,4 @@ PRODUCTION_READINESS_FINAL.md
 PRODUCTION_READINESS_REPORT.txt
 VERIFICATION_REPORT.txt
 scripts/clear-users.mjs
+.gstack/

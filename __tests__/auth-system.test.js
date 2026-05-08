@@ -20,8 +20,8 @@ import { validateCsrf } from "@/middleware/csrf";
 describe("Auth System", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.JWT_SECRET = "test_jwt_secret_min_32_chars_long";
-    process.env.REFRESH_TOKEN_SECRET = "test_refresh_secret_min_32_chars";
+    process.env.JWT_ACCESS_SECRET = "test_jwt_secret_min_32_chars_long";
+    process.env.JWT_REFRESH_SECRET = "test_refresh_secret_min_32_chars";
     process.env.ACCESS_TOKEN_EXPIRY = "15m";
     process.env.REFRESH_TOKEN_EXPIRY = "7d";
   });
@@ -159,7 +159,7 @@ describe("Auth System", () => {
       const token = generateAccessToken(payload);
 
       // Change secret
-      process.env.JWT_SECRET = "different_secret";
+      process.env.JWT_ACCESS_SECRET = "different_secret";
 
       expect(() => verifyAccessToken(token)).toThrow();
     });

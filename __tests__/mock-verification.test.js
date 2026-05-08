@@ -173,8 +173,8 @@ describe("Mock Verification", () => {
     it("should have all required env vars set", () => {
       expect(process.env.DATABASE_URL).toBeDefined();
       expect(process.env.REDIS_URL).toBeDefined();
-      expect(process.env.JWT_SECRET).toBeDefined();
-      expect(process.env.REFRESH_TOKEN_SECRET).toBeDefined();
+      expect(process.env.JWT_ACCESS_SECRET).toBeDefined();
+      expect(process.env.JWT_REFRESH_SECRET).toBeDefined();
       expect(process.env.GEMINI_API_KEY).toBeDefined();
       expect(process.env.QUEUE_NAME).toBeDefined();
     });

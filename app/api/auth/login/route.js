@@ -34,8 +34,12 @@ export async function POST(request) {
     return errorResponse("Invalid input", 422);
   }
 
-  const { username, password } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { username } });
+  const { username, email, password } = parsed.data;
+
+  // Find user by username OR email
+  const user = await prisma.user.findFirst({
+    where: username ? { username } : { email },
+  });
   if (!user) {
     return errorResponse("Invalid credentials", 401);
   }

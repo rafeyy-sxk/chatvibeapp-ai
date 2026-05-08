@@ -6,7 +6,7 @@ export function enforceMemoryOnlyUpload() {
   return {
     maxFiles: 10,
     maxTotalSize: 50 * 1024 * 1024,
-    allowedMimeTypes: ["image/png", "image/jpeg"],
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/heic", "image/heif", "image/bmp"],
   };
 }
 

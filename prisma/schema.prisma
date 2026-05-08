@@ -1,36 +1,32 @@
 generator client {
   provider        = "prisma-client-js"
-  // Optimize for serverless/Vercel
   previewFeatures = []
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // For Neon: Use connection pooler URL (hostname contains -pooler)
-  // Neon pooler format: postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/db
-  // For Vercel: Neon pooler is recommended for serverless (already in URL)
 }
 
 model User {
-  id                 String              @id @default(cuid())
-  username           String              @unique
-  email              String?             @unique
+  id                 String            @id @default(cuid())
+  username           String            @unique
+  email              String?           @unique
   passwordHash       String
-  createdAt          DateTime            @default(now())
-  failedLoginCount   Int                 @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt @default(now())
+  failedLoginCount   Int               @default(0)
   isLockedUntil      DateTime?
   resetTokenHash     String?
   resetTokenExpiry   DateTime?
   lastLoginAt        DateTime?
   lastLoginIp        String?
-  lastLoginUserAgent String?             @db.Text
+  lastLoginUserAgent String?           @db.Text
   refreshTokens      RefreshToken[]
   analysisReports    AnalysisReport[]
   analysisJobs       AnalysisJob[]
   userSessions       UserSession[]
   activityLogs       UserActivityLog[]
-  billingCustomer    BillingCustomer?
 }
 
 model RefreshToken {
@@ -47,15 +43,15 @@ model RefreshToken {
 }
 
 model AnalysisReport {
-  id            String           @id @default(cuid())
-  user          User             @relation(fields: [userId], references: [id])
+  id            String       @id @default(cuid())
+  user          User         @relation(fields: [userId], references: [id])
   userId        String
-  jobId         String?          @unique
-  job           AnalysisJob?     @relation(fields: [jobId], references: [id])
-  rawText       String           @db.Text
+  jobId         String?      @unique
+  job           AnalysisJob? @relation(fields: [jobId], references: [id])
+  rawText       String       @db.Text
   analyticsJson Json
   geminiSummary Json
-  createdAt     DateTime         @default(now())
+  createdAt     DateTime     @default(now())
 
   @@index([userId, createdAt], map: "AnalysisReport_userId_createdAt_idx")
   @@index([jobId])
@@ -68,8 +64,8 @@ model AnalysisJob {
   userId       String
   user         User            @relation(fields: [userId], references: [id])
   status       JobStatus       @default(QUEUED)
-  progress     Int             @default(0) // 0-100
-  priority     Int             @default(5) // 1-10, higher = more priority
+  progress     Int             @default(0)
+  priority     Int             @default(5)
   inputText    String?         @db.Text
   imageCount   Int?
   customPrompt String?         @db.Text
@@ -81,9 +77,11 @@ model AnalysisJob {
   failedAt     DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+  vibe         String?         @db.Text
+  shareToken   String?         @unique
+  isPublic     Boolean         @default(false)
+  language     String          @default("eng")
   report       AnalysisReport?
-  billingLog   BillingLog?
-  billingUsage BillingUsage?
 
   @@index([userId, createdAt])
   @@index([status, priority, createdAt])
@@ -114,7 +112,7 @@ model UserSession {
   deviceFingerprint String
   userAgent         String        @db.Text
   ipAddress         String
-  location          String? // City, Country (optional, from IP geolocation)
+  location          String?
   isActive          Boolean       @default(true)
   lastActivityAt    DateTime      @default(now())
   createdAt         DateTime      @default(now())
@@ -129,152 +127,15 @@ model UserActivityLog {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id])
-  activityType String // LOGIN, LOGOUT, ANALYSIS_CREATED, ANALYSIS_VIEWED, etc.
+  activityType String
   ipAddress    String
   userAgent    String?  @db.Text
-  metadata     Json? // Additional context
+  metadata     Json?
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([activityType, createdAt])
   @@index([createdAt])
-}
-
-model BillingLog {
-  id           String       @id @default(cuid())
-  userId       String
-  jobId        String?      @unique
-  job          AnalysisJob? @relation(fields: [jobId], references: [id])
-  resourceType String // ANALYSIS, STORAGE, API_CALL
-  quantity     Int // Number of images, API calls, etc.
-  cost         Decimal      @db.Decimal(10, 4) // Cost in USD
-  metadata     Json? // Additional billing context
-  createdAt    DateTime     @default(now())
-
-  @@index([userId, createdAt])
-  @@index([createdAt])
-}
-
-model BillingCustomer {
-  id               String               @id @default(cuid())
-  userId           String               @unique
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stripeCustomerId String?              @unique // Nullable for free tier users who haven't subscribed
-  email            String?
-  name             String?
-  billingAddress   Json? // Full address object
-  paymentMethodId  String? // Default payment method
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  subscription     BillingSubscription?
-  usageRecords     BillingUsage[]
-  events           BillingEvent[]
-
-  @@index([stripeCustomerId])
-  @@index([userId])
-}
-
-enum SubscriptionTier {
-  FREE
-  BASIC
-  PRO
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  PAST_DUE
-  UNPAID
-  TRIALING
-  INCOMPLETE
-  INCOMPLETE_EXPIRED
-  PAUSED
-}
-
-model BillingSubscription {
-  id                   String             @id @default(cuid())
-  customerId           String             @unique
-  customer             BillingCustomer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  stripeSubscriptionId String             @unique
-  stripePriceId        String
-  tier                 SubscriptionTier   @default(FREE)
-  status               SubscriptionStatus @default(ACTIVE)
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean            @default(false)
-  canceledAt           DateTime?
-  trialStart           DateTime?
-  trialEnd             DateTime?
-  monthlyCredits       Int                @default(10) // Credits per month
-  creditsUsed          Int                @default(0) // Credits used this period
-  creditsRemaining     Int                @default(10) // Remaining credits
-  overageRate          Decimal            @db.Decimal(10, 4) // Cost per overage credit
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  @@index([stripeSubscriptionId])
-  @@index([customerId])
-  @@index([tier, status])
-  @@index([currentPeriodEnd])
-}
-
-model BillingUsage {
-  id          String          @id @default(cuid())
-  customerId  String
-  customer    BillingCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  jobId       String?         @unique
-  job         AnalysisJob?    @relation(fields: [jobId], references: [id])
-  credits     Int             @default(1) // Credits consumed (usually 1 per job)
-  isOverage   Boolean         @default(false) // Whether this is over monthly allowance
-  cost        Decimal         @db.Decimal(10, 4) // Cost in USD (0 for included credits)
-  periodStart DateTime // Billing period start
-  periodEnd   DateTime // Billing period end
-  metadata    Json? // Additional usage context
-  createdAt   DateTime        @default(now())
-
-  @@index([customerId, periodStart, periodEnd])
-  @@index([jobId])
-  @@index([createdAt])
-}
-
-model BillingEvent {
-  id            String           @id @default(cuid())
-  customerId    String?
-  customer      BillingCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  stripeEventId String           @unique
-  eventType     String // invoice.paid, customer.subscription.updated, etc.
-  processed     Boolean          @default(false)
-  processedAt   DateTime?
-  payload       Json // Full Stripe event payload
-  errorMessage  String?          @db.Text
-  retryCount    Int              @default(0)
-  createdAt     DateTime         @default(now())
-
-  @@index([stripeEventId])
-  @@index([customerId, createdAt])
-  @@index([eventType, processed])
-  @@index([processed, createdAt])
-}
-
-// ============================================================================
-// Phase 4: AI Personalization Engine Models
-// ============================================================================
-
-enum RelationshipType {
-  ROMANTIC
-  FRIEND
-  FAMILY
-  COLLEAGUE
-  ACQUAINTANCE
-  OTHER
-}
-
-enum AdviceType {
-  RELATIONSHIP
-  COMMUNICATION
-  EMOTIONAL
-  BEHAVIORAL
-  GENERAL
 }
 
 model CacheEntry {

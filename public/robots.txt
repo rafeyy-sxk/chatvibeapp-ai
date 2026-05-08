@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /analysis/
+Disallow: /billing/
+Disallow: /(auth)/
+
+Sitemap: https://chatvibeapp-ai.vercel.app/sitemap.xml

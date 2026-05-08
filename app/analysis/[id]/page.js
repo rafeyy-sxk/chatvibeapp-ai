@@ -272,6 +272,45 @@ export default function AnalysisDetailPage() {
               </Section>
             )}
 
+            {/* Vibe Box */}
+            {report?.vibe && (
+              <motion.section
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  border: "1px solid rgba(201,123,79,0.2)",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  background: "rgba(201,123,79,0.03)",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.18em",
+                    color: "rgba(201,123,79,0.6)",
+                    marginBottom: "0.75rem",
+                  }}
+                >
+                  The Vibe
+                </p>
+                <p
+                  style={{
+                    fontFamily: "var(--font-fraunces, 'Fraunces', Georgia, serif)",
+                    fontStyle: "italic",
+                    fontSize: "1rem",
+                    color: "rgba(242,237,228,0.72)",
+                    lineHeight: 1.75,
+                  }}
+                >
+                  {report.vibe}
+                </p>
+              </motion.section>
+            )}
+
             {/* Charts */}
             <div className="grid gap-4 sm:grid-cols-2">
               <Section title="Sentiment timeline" icon={Activity} delay={0.1}>

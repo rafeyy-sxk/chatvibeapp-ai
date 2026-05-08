@@ -363,8 +363,8 @@ jest.mock("@/lib/env", () => ({
   env: {
     databaseUrl: process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/test",
     redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
-    jwtSecret: process.env.JWT_SECRET || "test_jwt_secret_key_min_32_chars_long",
-    refreshSecret: process.env.REFRESH_TOKEN_SECRET || "test_refresh_secret_key_min_32_chars",
+    jwtSecret: process.env.JWT_ACCESS_SECRET || "test_jwt_secret_key_min_32_chars_long",
+    refreshSecret: process.env.JWT_REFRESH_SECRET || "test_refresh_secret_key_min_32_chars",
     accessTokenExpiry: "15m",
     refreshTokenExpiry: "7d",
     bcryptRounds: 12,
@@ -604,8 +604,8 @@ jest.mock("@/lib/personalization/integration", () => ({
 process.env.NODE_ENV = "test";
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://test:test@localhost:5432/test";
 process.env.REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-process.env.JWT_SECRET = process.env.JWT_SECRET || "test_jwt_secret_key_min_32_chars_long";
-process.env.REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || "test_refresh_secret_key_min_32_chars";
+process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "test_jwt_secret_key_min_32_chars_long";
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "test_refresh_secret_key_min_32_chars";
 process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || "test_gemini_key";
 process.env.QUEUE_NAME = process.env.QUEUE_NAME || "test-queue";
 process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "sk_test_mock";

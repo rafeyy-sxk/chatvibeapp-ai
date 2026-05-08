@@ -112,18 +112,9 @@ export async function POST(request) {
 
     const { text, customPrompt } = parsed.data;
 
-    // Check user exists + free subscription check (create one if none)
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return applySecurityHeaders(NextResponse.json({ error: "User not found" }, { status: 404 }));
-    }
-
-    // Ensure billing record exists (upsert free tier)
-    let billingCustomer = await prisma.billingCustomer.findUnique({ where: { userId } });
-    if (!billingCustomer) {
-      billingCustomer = await prisma.billingCustomer.create({
-        data: { userId, email: user.email },
-      });
     }
 
     // Create job record

@@ -56,6 +56,7 @@ export async function GET(request, { params }) {
     // Cache miss - fetch from database
     const dbReport = await prisma.analysisReport.findFirst({
       where: { id, userId: auth.payload.sub },
+      include: { job: { select: { vibe: true } } },
     });
 
     if (!dbReport) {
@@ -67,9 +68,9 @@ export async function GET(request, { params }) {
       id: dbReport.id,
       createdAt: dbReport.createdAt,
       rawText: dbReport.rawText,
-      ocrTranscript: dbReport.ocrTranscript,
       analytics: dbReport.analyticsJson,
       geminiSummary: dbReport.geminiSummary,
+      vibe: dbReport.job?.vibe ?? null,
     };
 
     // Cache the result

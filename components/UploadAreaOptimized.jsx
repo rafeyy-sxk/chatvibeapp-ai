@@ -92,7 +92,7 @@ export const UploadAreaOptimized = memo(function UploadAreaOptimized({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "image/*": [".png", ".jpeg", ".jpg", ".webp"] },
+    accept: { "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".heic", ".heif", ".bmp"] },
     maxFiles: 10,
   });
 

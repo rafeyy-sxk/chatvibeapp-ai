@@ -1,5 +1,4 @@
 import { enforceRateLimit } from "@/middleware/rateLimit";
-import { validateCsrf, ensureCsrfCookie } from "@/middleware/csrf";
 import { errorResponse, jsonResponse } from "@/lib/http";
 import { findValidRefreshToken, persistRefreshToken } from "@/lib/auth/refreshStore";
 import { clearRefreshCookie, setRefreshCookie } from "@/lib/auth/cookies";
@@ -14,9 +13,6 @@ export const maxDuration = 10;
 export async function POST(request) {
   const rateLimit = await enforceRateLimit(request, "auth:refresh");
   if (rateLimit) return rateLimit;
-
-  const csrfCheck = validateCsrf(request);
-  if (csrfCheck) return csrfCheck;
 
   const refreshToken = request.cookies.get("cv_refresh")?.value;
   if (!refreshToken) {
@@ -45,7 +41,6 @@ export async function POST(request) {
 
   const response = jsonResponse({ accessToken: newAccessToken });
   setRefreshCookie(response, newRefreshToken);
-  ensureCsrfCookie(response, request.cookies.get("cv_csrf")?.value);
   return applySecurityHeaders(response);
 }
 

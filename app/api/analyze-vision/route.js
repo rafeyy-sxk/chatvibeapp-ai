@@ -9,19 +9,60 @@ import { NextResponse } from "next/server";
 import { verifyAccessToken } from "@/lib/auth/tokens";
 import { applySecurityHeaders } from "@/lib/security/headers";
 import prisma from "@/lib/prisma";
+import { generate } from "@/lib/ai";
 import { z } from "zod";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 const schema = z.object({
   images: z.array(z.string()).min(1).max(10),
   customPrompt: z.string().max(500).optional(),
 });
+
+// Formats Groq vision accepts natively
+const GROQ_NATIVE = /^image\/(jpeg|jpg|png|gif|webp)$/i;
+// All formats we'll accept (non-native get converted by sharp)
+const ACCEPTED_MIME = /^image\/(jpeg|jpg|png|gif|webp|avif|heic|heif|bmp)$/i;
+const MAX_PX = 2048;
+
+function parseMime(dataUrl) {
+  if (dataUrl.startsWith("data:")) {
+    return dataUrl.slice(5, dataUrl.indexOf(";"));
+  }
+  return "image/jpeg";
+}
+
+function parseBase64(dataUrl) {
+  const idx = dataUrl.indexOf(",");
+  return idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
+}
+
+async function normalizeImage(dataUrl) {
+  const mime = parseMime(dataUrl);
+  const raw = parseBase64(dataUrl);
+  let buf = Buffer.from(raw, "base64");
+  let outMime = mime;
+
+  // Convert non-native formats to JPEG
+  if (!GROQ_NATIVE.test(mime)) {
+    buf = await sharp(buf).jpeg({ quality: 85 }).toBuffer();
+    outMime = "image/jpeg";
+  }
+
+  // Downsize if over MAX_PX (faster + stays under 4MB limit)
+  const meta = await sharp(buf).metadata();
+  if ((meta.width || 0) > MAX_PX || (meta.height || 0) > MAX_PX) {
+    const format = outMime === "image/jpeg" ? "jpeg" : undefined;
+    const resized = sharp(buf).resize(MAX_PX, MAX_PX, { fit: "inside", withoutEnlargement: true });
+    buf = format === "jpeg"
+      ? await resized.jpeg({ quality: 85 }).toBuffer()
+      : await resized.toBuffer();
+  }
+
+  return `data:${outMime};base64,${buf.toString("base64")}`;
+}
 
 const SYSTEM_PROMPT = `You are ChatVibe AI. Read chat screenshots and return a JSON analysis.
 
@@ -50,15 +91,25 @@ STRICT RULES:
 - Output ONLY the JSON — zero extra text before or after`;
 
 async function callGroqVision(images, customPrompt) {
-  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+  // Validate MIME types and normalize (convert + resize) each image
+  const normalized = await Promise.all(
+    images.map(async (b64) => {
+      const mime = parseMime(b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`);
+      if (!ACCEPTED_MIME.test(mime)) {
+        const err = new Error(`Unsupported image type: ${mime}`);
+        err.code = "UNSUPPORTED_MIME";
+        err.received = mime;
+        throw err;
+      }
+      const dataUrl = b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
+      return normalizeImage(dataUrl);
+    })
+  );
 
-  // Build content array: all images + text prompt
   const content = [
-    ...images.map((b64) => ({
+    ...normalized.map((url) => ({
       type: "image_url",
-      image_url: {
-        url: b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`,
-      },
+      image_url: { url },
     })),
     {
       type: "text",
@@ -68,31 +119,15 @@ async function callGroqVision(images, customPrompt) {
     },
   ];
 
-  const res = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: VISION_MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content },
-      ],
-      temperature: 0.6,
-      max_tokens: 1024,
-      response_format: { type: "json_object" },
-    }),
+  const raw = await generate({
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content },
+    ],
+    temperature: 0.6,
+    maxTokens: 1024,
+    responseFormat: { type: "json_object" },
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Groq API error ${res.status}: ${err?.error?.message || "Unknown"}`);
-  }
-
-  const data = await res.json();
-  const raw = data?.choices?.[0]?.message?.content;
   if (!raw) throw new Error("Empty response from Groq");
 
   const parsed = JSON.parse(
@@ -210,9 +245,25 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error("[analyze-vision]", error.message);
+
+    if (error.code === "UNSUPPORTED_MIME") {
+      return applySecurityHeaders(
+        NextResponse.json({
+          data: null,
+          error: {
+            code: "UNSUPPORTED_MIME",
+            message: `Image type "${error.received}" is not supported. Try JPEG, PNG, WebP, GIF, AVIF, or HEIC.`,
+            received: error.received,
+            allowed: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/heic", "image/heif", "image/bmp"],
+          },
+          status: "error",
+        }, { status: 400 })
+      );
+    }
+
     return applySecurityHeaders(
       NextResponse.json(
-        { error: "Analysis failed. Please try again." },
+        { error: `Analysis failed: ${error.message || "Please try again."}` },
         { status: 500 }
       )
     );

@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { UpgradeModal } from "./UpgradeModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, CheckCircle, AlertCircle, Zap } from "lucide-react";
 
@@ -12,10 +11,6 @@ function formatBytes(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-/**
- * Compress an image file using canvas to reduce size before sending to server.
- * Returns a base64 data URL (JPEG, quality 0.82, max 1280px wide).
- */
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -46,8 +41,6 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
   const [statusLabel, setStatusLabel] = useState("");
   const [error, setError] = useState(null);
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [currentTier, setCurrentTier] = useState("FREE");
 
   const isLoading = stage !== null && stage !== "done";
 
@@ -72,7 +65,6 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
         return;
       }
 
-      // Show previews immediately
       setUploadedFiles(
         acceptedFiles.map((f) => ({
           id: `${f.name}-${Date.now()}-${Math.random()}`,
@@ -83,18 +75,13 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
       );
 
       try {
-        // Step 1: Compress images (0 → 30%)
         setStage("compressing");
         setStatusLabel("Preparing images…");
         setProgress(10);
 
-        const dataUrls = await Promise.all(
-          acceptedFiles.map((f) => compressImage(f))
-        );
-
+        const dataUrls = await Promise.all(acceptedFiles.map((f) => compressImage(f)));
         setProgress(30);
 
-        // Step 2: Send to Groq vision API (30 → 90%)
         setStage("analysing");
         setStatusLabel("Analysing with AI…");
         setProgress(40);
@@ -102,7 +89,6 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
         const payload = { images: dataUrls };
         if (customPrompt?.trim()) payload.customPrompt = customPrompt.trim();
 
-        // Animate progress while waiting for API
         const progressTimer = setInterval(() => {
           setProgress((p) => (p < 85 ? p + 3 : p));
         }, 400);
@@ -122,26 +108,13 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
         const data = await res.json();
 
         if (!res.ok) {
-          if (res.status === 402 || data.reason === "INSUFFICIENT_CREDITS") {
-            setError(data.message || "You've run out of credits.");
-            setShowUpgradeModal(true);
-            try {
-              const ur = await fetch("/api/billing/usage", {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (ur.ok) setCurrentTier((await ur.json()).tier || "FREE");
-            } catch { /* ignore */ }
-          } else {
-            throw new Error(data.error || "Analysis failed.");
-          }
-          setUploadedFiles([]);
-          setStage(null);
-          setProgress(0);
-          setStatusLabel("");
-          return;
+          const errObj = data.error;
+          const msg = typeof errObj === "object" && errObj?.message
+            ? errObj.message
+            : typeof errObj === "string" ? errObj : "Analysis failed.";
+          throw new Error(msg);
         }
 
-        // Step 3: Done
         setStage("done");
         setStatusLabel("Complete!");
         setProgress(100);
@@ -170,14 +143,13 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { "image/*": [".png", ".jpeg", ".jpg", ".webp"] },
+    accept: { "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".heic", ".heif", ".bmp"] },
     maxFiles: 10,
     disabled: isLoading,
   });
 
   return (
     <div className="w-full space-y-4">
-      {/* Drop zone */}
       <div
         {...getRootProps()}
         role="button"
@@ -200,9 +172,7 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
               <>
                 <div className="w-10 h-10 border-2 border-violet-500/25 border-t-violet-400 rounded-full animate-spin-smooth" />
                 <div className="w-full max-w-xs space-y-2.5 text-center">
-                  <p className="text-sm font-medium text-white/70">
-                    {statusLabel}
-                  </p>
+                  <p className="text-sm font-medium text-white/70">{statusLabel}</p>
                   <div className="progress-bar">
                     <motion.div
                       className="progress-fill"
@@ -210,9 +180,7 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                       transition={{ duration: 0.4, ease: "easeOut" }}
                     />
                   </div>
-                  <p className="text-xs text-white/30 tabular-nums">
-                    {progress}%
-                  </p>
+                  <p className="text-xs text-white/30 tabular-nums">{progress}%</p>
                 </div>
               </>
             ) : (
@@ -222,9 +190,7 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                 className="flex flex-col items-center gap-2"
               >
                 <CheckCircle size={28} className="text-emerald-400" />
-                <p className="text-sm font-medium text-emerald-300">
-                  Analysis complete!
-                </p>
+                <p className="text-sm font-medium text-emerald-300">Analysis complete!</p>
               </motion.div>
             )}
           </div>
@@ -232,29 +198,24 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
           <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
             <div
               className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${
-                isDragActive
-                  ? "bg-violet-500/20 text-violet-300"
-                  : "bg-white/5 text-white/35"
+                isDragActive ? "bg-violet-500/20 text-violet-300" : "bg-white/5 text-white/35"
               }`}
             >
               <Upload size={20} />
             </div>
             <div>
               <p className="text-sm font-medium text-white/80">
-                {isDragActive
-                  ? "Drop your screenshots here"
-                  : "Drag & drop screenshots, or click to browse"}
+                {isDragActive ? "Drop your screenshots here" : "Drag & drop screenshots, or click to browse"}
               </p>
               <p className="mt-1 text-xs text-white/35 flex items-center justify-center gap-1">
                 <Zap size={10} className="text-violet-400" />
-                PNG, JPG, WEBP · Up to 10 files · AI reads images directly
+                Any image (JPG, PNG, WebP, HEIC, AVIF, GIF) · Up to 10 files
               </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Error */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -277,7 +238,6 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
         )}
       </AnimatePresence>
 
-      {/* File previews */}
       <AnimatePresence>
         {uploadedFiles.length > 0 && (
           <motion.div
@@ -293,32 +253,16 @@ export function UploadAreaV2({ onResult, accessToken, customPrompt = "" }) {
                 animate={{ scale: 1, opacity: 1 }}
                 className="group relative aspect-square overflow-hidden rounded-xl border border-white/8"
               >
-                <img
-                  src={file.preview}
-                  alt={file.name}
-                  className="w-full h-full object-cover"
-                />
+                <img src={file.preview} alt={file.name} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-                  <p className="text-[10px] text-white truncate font-medium">
-                    {file.name}
-                  </p>
-                  <p className="text-[10px] text-white/50">
-                    {formatBytes(file.size)}
-                  </p>
+                  <p className="text-[10px] text-white truncate font-medium">{file.name}</p>
+                  <p className="text-[10px] text-white/50">{formatBytes(file.size)}</p>
                 </div>
               </motion.div>
             ))}
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        currentTier={currentTier}
-        accessToken={resolveToken()}
-      />
     </div>
   );
 }

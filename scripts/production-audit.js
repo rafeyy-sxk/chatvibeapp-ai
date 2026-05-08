@@ -24,8 +24,8 @@ async function audit() {
   console.log("\n1. ENVIRONMENT VARIABLES");
   const required = {
     DATABASE_URL: process.env.DATABASE_URL,
-    JWT_SECRET: process.env.JWT_SECRET,
-    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
+    JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,
+    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
   };
 
   Object.entries(required).forEach(([key, value]) => {

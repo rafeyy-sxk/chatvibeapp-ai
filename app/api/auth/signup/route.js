@@ -30,14 +30,24 @@ export async function POST(request) {
       return errorResponse("Invalid input", 422, { details: parsed.error.flatten() });
     }
 
-    const { username, email, password } = parsed.data;
+    let { username, email, password } = parsed.data;
+
+    // Auto-derive username from email if not provided
+    if (!username && email) {
+      const base = email.split("@")[0].replace(/[^a-z0-9_]/gi, "").slice(0, 28);
+      username = base || "user";
+    }
 
     const orConditions = [{ username }];
     if (email) orConditions.push({ email });
 
     const existing = await prisma.user.findFirst({ where: { OR: orConditions } });
     if (existing) {
-      return errorResponse("Username or email already taken", 409);
+      // If username collision from derivation, append random suffix
+      if (existing.email === email) {
+        return errorResponse("Email already registered", 409);
+      }
+      username = `${username}_${Math.random().toString(36).slice(2, 6)}`;
     }
 
     const passwordHash = await hashPassword(password);
